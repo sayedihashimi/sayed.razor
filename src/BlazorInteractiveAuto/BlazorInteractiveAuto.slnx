@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="BlazorInteractiveAuto.Client/BlazorInteractiveAuto.Client.csproj" />
+  <Project Path="BlazorInteractiveAuto/BlazorInteractiveAuto.csproj" />
+</Solution>
