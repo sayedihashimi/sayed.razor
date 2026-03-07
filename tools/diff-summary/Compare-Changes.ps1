@@ -8,11 +8,17 @@
     inline diffs with syntax highlighting. Beyond Compare's rules-based comparison is used with
     the "ignore unimportant" option to skip insignificant differences like whitespace and blank lines.
 
+    Supports Windows and Linux. Beyond Compare 5 is installed automatically if not already present.
+
 .PARAMETER Ref1
     First git ref to compare (branch name, commit SHA, or tag). This is the base ref.
+    Remote branches (e.g. "origin/my-branch") are also accepted. If a bare branch name is
+    given and no local branch exists, the script automatically tries "origin/<Ref1>".
 
 .PARAMETER Ref2
     Second git ref to compare (branch name, commit SHA, or tag). This is the compare ref.
+    Remote branches (e.g. "origin/my-branch") are also accepted. If a bare branch name is
+    given and no local branch exists, the script automatically tries "origin/<Ref2>".
 
 .PARAMETER OutputFile
     Path to the output markdown file. Defaults to "diff-summary.md".
@@ -27,6 +33,8 @@
     ./Compare-Changes.ps1 -Ref1 main -Ref2 feature/no-agent -OutputFile results/my-comparison.md
 #>
 
+#Requires -Version 7
+
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
@@ -40,8 +48,6 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-
-$BcPath = "C:\Program Files\Beyond Compare 5\BComp.com"
 
 # Temp paths (set here so finally block can always clean up)
 $worktree1 = $null
@@ -73,6 +79,92 @@ function Get-FileLineCounts {
     return @{ Added = $added; Removed = $removed }
 }
 
+function Ensure-BeyondCompareInstalled {
+    <#
+    .SYNOPSIS
+        Ensures Beyond Compare 5 CLI is installed and returns its executable path.
+    .DESCRIPTION
+        Checks whether Beyond Compare 5 is installed on the current platform (Windows or Linux).
+        If it is not found it will be installed automatically, then the path to the executable
+        is returned.  Exits with code 1 if installation is not possible.
+    .OUTPUTS
+        [string] Absolute path to the Beyond Compare 5 executable.
+    #>
+
+    if ($IsWindows) {
+        $bcPath = "C:\Program Files\Beyond Compare 5\BComp.com"
+        if (Test-Path $bcPath) {
+            Write-Host "  Beyond Compare 5 found at: $bcPath" -ForegroundColor Gray
+            return $bcPath
+        }
+
+        Write-Host "Beyond Compare 5 not found. Attempting to install via Chocolatey..." -ForegroundColor Yellow
+        $chocoCmd = Get-Command choco -ErrorAction SilentlyContinue
+        if ($chocoCmd) {
+            & choco install beyondcompare -y 2>&1 | Out-Null
+        }
+        else {
+            Write-Error "Beyond Compare 5 is not installed and Chocolatey is not available. Please install Beyond Compare 5 from https://www.scootersoftware.com/ or install Chocolatey and re-run."
+            exit 1
+        }
+
+        if (Test-Path $bcPath) {
+            Write-Host "  Beyond Compare 5 installed at: $bcPath" -ForegroundColor Gray
+            return $bcPath
+        }
+
+        Write-Error "Beyond Compare 5 installation failed. Please install it manually from https://www.scootersoftware.com/"
+        exit 1
+    }
+    elseif ($IsLinux) {
+        # Check common installation locations
+        $linuxPaths = @("/usr/bin/bcompare", "/usr/lib/beyondcompare/bcompare")
+        foreach ($path in $linuxPaths) {
+            if (Test-Path $path) {
+                Write-Host "  Beyond Compare 5 found at: $path" -ForegroundColor Gray
+                return $path
+            }
+        }
+
+        # Check PATH
+        $bcInPath = Get-Command bcompare -ErrorAction SilentlyContinue
+        if ($bcInPath) {
+            Write-Host "  Beyond Compare 5 found at: $($bcInPath.Source)" -ForegroundColor Gray
+            return $bcInPath.Source
+        }
+
+        Write-Host "Beyond Compare 5 not found. Installing via apt..." -ForegroundColor Yellow
+        & bash -c "wget -qO - https://www.scootersoftware.com/RPM-GPG-KEY-scootersoftware | sudo gpg --dearmor -o /etc/apt/keyrings/scootersoftware.gpg" 2>&1 | Out-Null
+        & bash -c "echo 'deb [signed-by=/etc/apt/keyrings/scootersoftware.gpg] https://www.scootersoftware.com/ bcompare5 non-free' | sudo tee /etc/apt/sources.list.d/bcompare.list" | Out-Null
+        & sudo apt-get update -qq 2>&1 | Out-Null
+        & sudo apt-get install -y bcompare 2>&1 | Out-Null
+
+        foreach ($path in $linuxPaths) {
+            if (Test-Path $path) {
+                Write-Host "  Beyond Compare 5 installed at: $path" -ForegroundColor Gray
+                return $path
+            }
+        }
+
+        $bcInPath = Get-Command bcompare -ErrorAction SilentlyContinue
+        if ($bcInPath) {
+            Write-Host "  Beyond Compare 5 installed at: $($bcInPath.Source)" -ForegroundColor Gray
+            return $bcInPath.Source
+        }
+
+        Write-Error "Beyond Compare 5 installation failed. Please install it manually from https://www.scootersoftware.com/"
+        exit 1
+    }
+    else {
+        Write-Error "Unsupported operating system. Beyond Compare 5 is available for Windows and Linux. Visit https://www.scootersoftware.com/ for more information."
+        exit 1
+    }
+}
+
+# Ensure Beyond Compare 5 is installed when the script is loaded
+Write-Host "Checking Beyond Compare 5 installation..." -ForegroundColor Cyan
+$BcPath = Ensure-BeyondCompareInstalled
+
 try {
     # Step 1: Validate environment
     Write-Host "Validating environment..." -ForegroundColor Cyan
@@ -89,21 +181,30 @@ try {
         exit 1
     }
 
-    if (-not (Test-Path $BcPath)) {
-        Write-Error "Beyond Compare 5 not found at '$BcPath'. Please install Beyond Compare 5."
-        exit 1
-    }
-
+    # Resolve Ref1 — try bare name first, fall back to origin/<ref>
     $ref1Sha = git rev-parse --verify $Ref1 2>$null
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Ref1 '$Ref1' is not a valid git ref (branch, commit SHA, or tag)."
-        exit 1
+        $ref1Sha = git rev-parse --verify "origin/$Ref1" 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $Ref1 = "origin/$Ref1"
+        }
+        else {
+            Write-Error "Ref1 '$Ref1' is not a valid git ref (branch, commit SHA, or tag)."
+            exit 1
+        }
     }
 
+    # Resolve Ref2 — try bare name first, fall back to origin/<ref>
     $ref2Sha = git rev-parse --verify $Ref2 2>$null
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Ref2 '$Ref2' is not a valid git ref (branch, commit SHA, or tag)."
-        exit 1
+        $ref2Sha = git rev-parse --verify "origin/$Ref2" 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $Ref2 = "origin/$Ref2"
+        }
+        else {
+            Write-Error "Ref2 '$Ref2' is not a valid git ref (branch, commit SHA, or tag)."
+            exit 1
+        }
     }
 
     Write-Host "  Ref1: $Ref1 ($ref1Sha)" -ForegroundColor Gray
@@ -149,7 +250,17 @@ text-report layout:side-by-side options:display-mismatches output-to:"%3"
 "@
     Set-Content -Path $bcScriptFile -Value $bcScript -Encoding ASCII
 
-    & $BcPath "@$bcScriptFile" $worktree1 $worktree2 $bcReportFile /silent /closescript /iu 2>&1 | Out-Null
+    # On Linux without a display, wrap with xvfb-run so Beyond Compare can initialize
+    if ($IsLinux -and -not $env:DISPLAY) {
+        $xvfbRun = Get-Command xvfb-run -ErrorAction SilentlyContinue
+        if (-not $xvfbRun) {
+            & sudo apt-get install -y xvfb 2>&1 | Out-Null
+        }
+        & xvfb-run $BcPath "@$bcScriptFile" $worktree1 $worktree2 $bcReportFile /silent /closescript /iu 2>&1 | Out-Null
+    }
+    else {
+        & $BcPath "@$bcScriptFile" $worktree1 $worktree2 $bcReportFile /silent /closescript /iu 2>&1 | Out-Null
+    }
     $bcExitCode = $LASTEXITCODE
 
     if ($bcExitCode -ge 100) {
