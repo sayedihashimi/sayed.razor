@@ -1,0 +1,125 @@
+@page "{id:int}"
+@model RazorPages.Pages.Employees.EditModel
+@{
+    ViewData["Title"] = "Edit " + Model.Employee.FullName;
+}
+
+<div class="mb-6">
+    <a asp-page="Details" asp-route-id="@Model.Employee.Id" class="text-cascade-600 hover:text-cascade-800 text-sm">← Back to @Model.Employee.FullName</a>
+</div>
+
+<div class="bg-white shadow rounded-lg p-6">
+    <h1 class="text-2xl font-bold text-gray-900 mb-6">✏️ Edit @Model.Employee.FullName</h1>
+
+    <form method="post" data-confirm="Are you sure you want to update this employee's information?">
+        <input type="hidden" asp-for="Employee.Id" />
+
+        <!-- Personal Information -->
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Personal Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div>
+                <label asp-for="Employee.FirstName" class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                <input asp-for="Employee.FirstName" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 text-sm px-3 py-2 border" />
+            </div>
+            <div>
+                <label asp-for="Employee.LastName" class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                <input asp-for="Employee.LastName" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 text-sm px-3 py-2 border" />
+            </div>
+            <div>
+                <label asp-for="Employee.Email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input asp-for="Employee.Email" type="email" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 text-sm px-3 py-2 border" />
+            </div>
+            <div>
+                <label asp-for="Employee.Phone" class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                <input asp-for="Employee.Phone" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 text-sm px-3 py-2 border" />
+            </div>
+        </div>
+
+        <!-- Work Information -->
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Work Information</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div>
+                <label asp-for="Employee.Department" class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <select asp-for="Employee.Department" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 text-sm px-3 py-2 border">
+                    @foreach (var dept in Model.Departments)
+                    {
+                        <option value="@dept" selected="@(Model.Employee.Department == dept)">@dept</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label asp-for="Employee.Title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                <input asp-for="Employee.Title" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 text-sm px-3 py-2 border" />
+            </div>
+            <div>
+                <label asp-for="Employee.HireDate" class="block text-sm font-medium text-gray-700 mb-1">Hire Date</label>
+                <input asp-for="Employee.HireDate" type="date" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 text-sm px-3 py-2 border" />
+            </div>
+        </div>
+
+        <!-- Location -->
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Location</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div>
+                <label asp-for="Employee.BuildingId" class="block text-sm font-medium text-gray-700 mb-1">Building</label>
+                <select asp-for="Employee.BuildingId" id="buildingId" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 text-sm px-3 py-2 border">
+                    @foreach (var b in Model.Buildings)
+                    {
+                        <option value="@b.Id" selected="@(Model.Employee.BuildingId == b.Id)">@b.Name</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label asp-for="Employee.RoomId" class="block text-sm font-medium text-gray-700 mb-1">Room</label>
+                <select asp-for="Employee.RoomId" id="roomId" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 text-sm px-3 py-2 border">
+                    @foreach (var room in Model.AllOfficeRooms.Where(r => r.BuildingId == Model.Employee.BuildingId))
+                    {
+                        <option value="@room.Id" selected="@(Model.Employee.RoomId == room.Id)">@room.RoomNumber</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <!-- Emergency Contact -->
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Emergency Contact</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            <div>
+                <label asp-for="Employee.EmergencyContactName" class="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+                <input asp-for="Employee.EmergencyContactName" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 text-sm px-3 py-2 border" />
+            </div>
+            <div>
+                <label asp-for="Employee.EmergencyContactPhone" class="block text-sm font-medium text-gray-700 mb-1">Contact Phone</label>
+                <input asp-for="Employee.EmergencyContactPhone" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 text-sm px-3 py-2 border" />
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button type="submit" class="inline-flex items-center rounded-md bg-cascade-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-cascade-500">
+                💾 Save Changes
+            </button>
+            <a asp-page="Details" asp-route-id="@Model.Employee.Id" class="text-sm text-gray-600 hover:text-gray-900">Cancel</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        const roomsByBuilding = @Html.Raw(Model.RoomsByBuildingJson);
+        const buildingSelect = document.getElementById('buildingId');
+        const roomSelect = document.getElementById('roomId');
+        const currentRoomId = @Model.Employee.RoomId;
+
+        buildingSelect.addEventListener('change', () => {
+            const buildingId = buildingSelect.value;
+            const rooms = roomsByBuilding[buildingId] || [];
+            roomSelect.innerHTML = '';
+            rooms.forEach(room => {
+                const option = document.createElement('option');
+                option.value = room.id;
+                option.textContent = room.roomNumber;
+                if (room.id === currentRoomId) option.selected = true;
+                roomSelect.appendChild(option);
+            });
+        });
+    </script>
+}

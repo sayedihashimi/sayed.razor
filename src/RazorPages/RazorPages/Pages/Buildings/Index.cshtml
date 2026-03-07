@@ -1,0 +1,46 @@
+@page
+@model RazorPages.Pages.Buildings.IndexModel
+@{
+    ViewData["Title"] = "Buildings";
+}
+
+<div class="mb-6">
+    <h1 class="text-3xl font-bold text-gray-900">🏗️ Office Buildings</h1>
+    <p class="mt-2 text-gray-600">All @Model.Buildings.Count campus buildings</p>
+</div>
+
+<div class="bg-white shadow rounded-lg overflow-hidden">
+    <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Address</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Floors</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Year Built</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employees</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rooms</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+            @foreach (var building in Model.Buildings)
+            {
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center rounded-full bg-cascade-100 px-2.5 py-0.5 text-xs font-medium text-cascade-800">@building.Code</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">@building.Name</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@building.Address</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@building.Floors</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@building.YearBuilt</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@Model.EmployeeCounts[building.Id]</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">@Model.RoomCounts[building.Id]</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <a asp-page="Details" asp-route-id="@building.Id" class="text-cascade-600 hover:text-cascade-900">View Details</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

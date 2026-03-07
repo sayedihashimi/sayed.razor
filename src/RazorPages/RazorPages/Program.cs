@@ -1,15 +1,18 @@
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddSingleton<RazorPages.Services.OfficeDataService>();
 builder.Services.AddRazorPages();
 
 var app = builder.Build();
+
+// Eagerly initialize the data service to load seed data at startup
+app.Services.GetRequiredService<RazorPages.Services.OfficeDataService>();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
