@@ -1,0 +1,79 @@
+@page
+@model RazorPages.Pages.Employees.IndexModel
+@{
+    ViewData["Title"] = "Employees";
+}
+
+<div class="mb-6 flex items-center gap-3">
+    <h1 class="text-3xl font-bold text-gray-900">👥 Employees</h1>
+    <span class="inline-flex items-center rounded-full bg-cascade-100 px-3 py-1 text-sm font-medium text-cascade-800">@Model.Employees.Count employees</span>
+</div>
+
+<!-- Filters -->
+<div class="bg-white shadow rounded-lg p-4 mb-6">
+    <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <input type="text" name="Search" value="@Model.Search" placeholder="Name or email..."
+                   class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 sm:text-sm px-3 py-2 border" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+            <select name="Department" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 sm:text-sm px-3 py-2 border">
+                <option value="">All Departments</option>
+                @foreach (var dept in Model.Departments)
+                {
+                    <option value="@dept" selected="@(Model.Department == dept)">@dept</option>
+                }
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Building</label>
+            <select name="BuildingId" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 sm:text-sm px-3 py-2 border">
+                <option value="">All Buildings</option>
+                @foreach (var b in Model.Buildings)
+                {
+                    <option value="@b.Id" selected="@(Model.BuildingId == b.Id)">@b.Name</option>
+                }
+            </select>
+        </div>
+        <div class="flex items-end">
+            <button type="submit" class="inline-flex items-center rounded-md bg-cascade-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-cascade-500 w-full justify-center">
+                🔍 Filter
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Results -->
+<div class="overflow-hidden bg-white shadow ring-1 ring-black/5 sm:rounded-lg">
+    <table class="min-w-full divide-y divide-gray-300">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-4 py-3.5 text-left text-sm font-semibold text-gray-900">Name</th>
+                <th class="px-4 py-3.5 text-left text-sm font-semibold text-gray-900">Department</th>
+                <th class="px-4 py-3.5 text-left text-sm font-semibold text-gray-900">Title</th>
+                <th class="px-4 py-3.5 text-left text-sm font-semibold text-gray-900">Building</th>
+                <th class="px-4 py-3.5 text-left text-sm font-semibold text-gray-900">Room</th>
+                <th class="px-4 py-3.5 text-left text-sm font-semibold text-gray-900">Email</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+            @foreach (var emp in Model.Employees)
+            {
+                <tr class="hover:bg-gray-50 even:bg-gray-50/50">
+                    <td class="whitespace-nowrap px-4 py-3 text-sm">
+                        <a asp-page="Details" asp-route-id="@emp.Id" class="text-cascade-600 hover:text-cascade-800 font-medium">@emp.FullName</a>
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-3 text-sm">
+                        <span class="inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">@emp.Department</span>
+                    </td>
+                    <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-500">@emp.Title</td>
+                    <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-500">@Model.GetBuildingName(emp.BuildingId)</td>
+                    <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-500">@Model.GetRoomNumber(emp.RoomId)</td>
+                    <td class="whitespace-nowrap px-4 py-3 text-sm text-gray-500">@emp.Email</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

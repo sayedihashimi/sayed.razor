@@ -1,0 +1,77 @@
+@page "{id:int}"
+@model RazorPages.Pages.Rooms.EditModel
+@{
+    ViewData["Title"] = "Edit Room " + Model.Room.RoomNumber;
+}
+
+<div class="mb-6">
+    <a asp-page="Details" asp-route-id="@Model.Room.Id" class="text-cascade-600 hover:text-cascade-800 text-sm">← Back to Room @Model.Room.RoomNumber</a>
+</div>
+
+<h1 class="text-3xl font-bold text-gray-900 mb-6">✏️ Edit Room</h1>
+
+<!-- Read-only info -->
+<div class="bg-gray-50 rounded-lg p-4 mb-6 text-sm">
+    <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div><span class="font-medium text-gray-500">Room Number:</span> <span class="text-gray-900">@Model.Room.RoomNumber</span></div>
+        <div><span class="font-medium text-gray-500">Building:</span> <span class="text-gray-900">@Model.Building.Name</span></div>
+        <div><span class="font-medium text-gray-500">Floor:</span> <span class="text-gray-900">@Model.Room.Floor</span></div>
+    </div>
+</div>
+
+<form method="post" data-confirm="Are you sure you want to update this room's details?" class="bg-white shadow rounded-lg p-6">
+    <input type="hidden" asp-for="Room.Id" />
+    <input type="hidden" asp-for="Room.BuildingId" />
+    <input type="hidden" asp-for="Room.Floor" />
+    <input type="hidden" asp-for="Room.RoomNumber" />
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+            <label asp-for="Room.Type" class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <select asp-for="Room.Type" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 sm:text-sm px-3 py-2 border">
+                <option value="Office">Office</option>
+                <option value="Conference Room">Conference Room</option>
+                <option value="Break Room">Break Room</option>
+                <option value="Server Room">Server Room</option>
+                <option value="UX Lab">UX Lab</option>
+                <option value="Demo Center">Demo Center</option>
+                <option value="Records Room">Records Room</option>
+                <option value="Prototyping Lab">Prototyping Lab</option>
+                <option value="Executive Boardroom">Executive Boardroom</option>
+                <option value="Wellness Center">Wellness Center</option>
+            </select>
+        </div>
+        <div>
+            <label asp-for="Room.Capacity" class="block text-sm font-medium text-gray-700 mb-1">Capacity</label>
+            <input asp-for="Room.Capacity" type="number" min="1" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 sm:text-sm px-3 py-2 border" />
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Has Window</label>
+            <div class="flex items-center mt-2">
+                <input asp-for="Room.HasWindow" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-cascade-600 focus:ring-cascade-500" />
+                <label asp-for="Room.HasWindow" class="ml-2 text-sm text-gray-700">This room has a window</label>
+            </div>
+        </div>
+        <div>
+            <label asp-for="Room.AssignedEmployeeId" class="block text-sm font-medium text-gray-700 mb-1">Assigned Employee</label>
+            <select asp-for="Room.AssignedEmployeeId" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 sm:text-sm px-3 py-2 border">
+                <option value="">— Unoccupied —</option>
+                @foreach (var emp in Model.AvailableEmployees)
+                {
+                    <option value="@emp.Id">@emp.FullName (@emp.Department)</option>
+                }
+            </select>
+        </div>
+        <div class="md:col-span-2">
+            <label asp-for="Room.Notes" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <textarea asp-for="Room.Notes" rows="3" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-cascade-500 focus:ring-cascade-500 sm:text-sm px-3 py-2 border"></textarea>
+        </div>
+    </div>
+
+    <div class="mt-6 flex items-center gap-4">
+        <button type="submit" class="inline-flex items-center rounded-md bg-cascade-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-cascade-500">
+            💾 Save Changes
+        </button>
+        <a asp-page="Details" asp-route-id="@Model.Room.Id" class="text-sm text-gray-600 hover:text-gray-900">Cancel</a>
+    </div>
+</form>
