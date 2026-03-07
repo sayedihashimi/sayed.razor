@@ -1,0 +1,21 @@
+@page
+@model OrderConfirmationModel
+@{
+    ViewData["Title"] = "Order Confirmed";
+}
+
+<div class="container py-5 text-center">
+    <div class="mx-auto" style="max-width: 600px;">
+        <div class="display-1 mb-3">🎉</div>
+        <h1 class="fw-bold text-success">Order Confirmed!</h1>
+        <p class="lead text-muted mt-3">
+            Thank you for shopping with HikeR! Your order has been placed successfully.
+        </p>
+        <p class="text-muted">
+            This is a demo application — no real order has been processed and no payment has been charged.
+        </p>
+        <div class="mt-4">
+            <a asp-page="/Index" class="btn btn-success btn-lg">🥾 Continue Shopping</a>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,37 @@
+@page "{id:int}"
+@model ProductDetailModel
+@{
+    ViewData["Title"] = Model.Product?.Name ?? "Product Not Found";
+}
+
+<div class="container py-4">
+    @if (Model.Product is not null)
+    {
+        <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a asp-page="/Index">Shop</a></li>
+                <li class="breadcrumb-item">
+                    <a asp-page="/Index" asp-route-category="@Model.Product.Category">@Model.Product.Category</a>
+                </li>
+                <li class="breadcrumb-item active" aria-current="page">@Model.Product.Name</li>
+            </ol>
+        </nav>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <img src="@Model.Product.ImageUrl" class="img-fluid rounded shadow" alt="@Model.Product.Name" />
+            </div>
+            <div class="col-md-6">
+                <span class="badge bg-success-subtle text-success-emphasis mb-2">@Model.Product.Category</span>
+                <h1 class="fw-bold">@Model.Product.Name</h1>
+                <p class="fs-3 fw-bold text-success my-3">@Model.Product.Price.ToString("C")</p>
+                <p class="lead">@Model.Product.Description</p>
+                <form method="post" asp-page-handler="AddToCart" class="mt-3">
+                    <input type="hidden" name="id" value="@Model.Product.Id" />
+                    <button type="submit" class="btn btn-success btn-lg">🛒 Add to Cart</button>
+                </form>
+                <a asp-page="/Index" class="btn btn-outline-success mt-2">← Back to Shop</a>
+            </div>
+        </div>
+    }
+</div>
