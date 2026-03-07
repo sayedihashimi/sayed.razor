@@ -1,0 +1,115 @@
+@page
+@model CheckoutModel
+@{
+    ViewData["Title"] = "Checkout";
+}
+
+<div class="container py-4">
+    <h1 class="fw-bold mb-4">Checkout</h1>
+
+    <form method="post">
+        <div class="row g-4">
+            <!-- Shipping & Payment Form -->
+            <div class="col-lg-7">
+                <!-- Shipping Information -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-success text-white fw-bold">
+                        📦 Shipping Information
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="fullName" class="form-label">Full Name</label>
+                            <input asp-for="CheckoutInfo.FullName" class="form-control" id="fullName" placeholder="John Doe" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email Address</label>
+                            <input asp-for="CheckoutInfo.Email" type="email" class="form-control" id="email" placeholder="john@example.com" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="address" class="form-label">Street Address</label>
+                            <input asp-for="CheckoutInfo.Address" class="form-control" id="address" placeholder="123 Trail Lane" />
+                        </div>
+                        <div class="row">
+                            <div class="col-md-5 mb-3">
+                                <label for="city" class="form-label">City</label>
+                                <input asp-for="CheckoutInfo.City" class="form-control" id="city" placeholder="Denver" />
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="state" class="form-label">State</label>
+                                <input asp-for="CheckoutInfo.State" class="form-control" id="state" placeholder="CO" />
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="zipCode" class="form-label">ZIP Code</label>
+                                <input asp-for="CheckoutInfo.ZipCode" class="form-control" id="zipCode" placeholder="80202" />
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="country" class="form-label">Country</label>
+                            <input asp-for="CheckoutInfo.Country" class="form-control" id="country" placeholder="United States" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payment Information -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-success text-white fw-bold">
+                        💳 Payment Information
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info small mb-3">
+                            🏔️ This is a demo app — no real payment is processed. Enter any values.
+                        </div>
+                        <div class="mb-3">
+                            <label for="cardholderName" class="form-label">Cardholder Name</label>
+                            <input asp-for="CheckoutInfo.CardholderName" class="form-control" id="cardholderName" placeholder="John Doe" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="cardNumber" class="form-label">Card Number</label>
+                            <input asp-for="CheckoutInfo.CardNumber" class="form-control" id="cardNumber" placeholder="4111 1111 1111 1111" />
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="expirationDate" class="form-label">Expiration Date</label>
+                                <input asp-for="CheckoutInfo.ExpirationDate" class="form-control" id="expirationDate" placeholder="MM/YY" />
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="cvv" class="form-label">CVV</label>
+                                <input asp-for="CheckoutInfo.Cvv" class="form-control" id="cvv" placeholder="123" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Summary -->
+            <div class="col-lg-5">
+                <div class="card shadow-sm sticky-top" style="top: 1rem;">
+                    <div class="card-header bg-light fw-bold">
+                        🧾 Order Summary
+                    </div>
+                    <div class="card-body">
+                        @foreach (var item in Model.CartItems)
+                        {
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <span class="fw-semibold">@item.ProductName</span>
+                                    <small class="text-muted d-block">Qty: @item.Quantity</small>
+                                </div>
+                                <span>@item.Subtotal.ToString("C")</span>
+                            </div>
+                        }
+                        <hr />
+                        <div class="d-flex justify-content-between fw-bold fs-5">
+                            <span>Total</span>
+                            <span class="text-success">@Model.Total.ToString("C")</span>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button type="submit" class="btn btn-success btn-lg w-100">Place Order</button>
+                        <a asp-page="/Cart" class="btn btn-outline-secondary w-100 mt-2">← Back to Cart</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
