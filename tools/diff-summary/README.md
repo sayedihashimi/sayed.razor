@@ -1,12 +1,11 @@
 # Diff Summary Tool
 
-Compare two git refs (branches, commit SHAs, or tags) and generate a markdown summary of all differences. Uses Beyond Compare 5 for folder comparison with rules-based analysis that ignores insignificant differences (whitespace, blank lines, line endings).
+Compare two git refs (branches, commit SHAs, or tags) and generate a markdown summary of all differences. Uses `git diff` with built-in whitespace-ignore flags to skip insignificant differences (whitespace, blank lines, line endings). Works on Windows and Linux — no additional tools required.
 
 ## Prerequisites
 
 - **git** — must be available on `PATH`
 - **PowerShell Core** (pwsh 7+)
-- **Beyond Compare 5** — installed at `C:\Program Files\Beyond Compare 5`
 
 ## Usage
 
@@ -31,16 +30,15 @@ Compare two git refs (branches, commit SHAs, or tags) and generate a markdown su
 
 ## How It Works
 
-1. Creates temporary git worktrees for both refs
-2. Runs Beyond Compare 5 in silent mode to identify files with significant differences (ignoring whitespace, blank lines, line endings)
-3. Uses `git diff --no-index` to generate unified diffs for each changed file
+1. Resolves both refs (with automatic `origin/<ref>` fallback for remote branches in CI)
+2. Uses `git diff --name-status -w` to identify changed files and their status (Added/Modified/Deleted/Renamed)
+3. Uses `git diff -w --unified=3` per file to generate unified diffs with whitespace changes suppressed
 4. Assembles a markdown report with a summary table and per-file inline diffs
-5. Cleans up temporary worktrees
 
 ## Output Format
 
 The generated markdown file contains:
 
 1. **Header** — ref names, resolved SHAs, repository name, and timestamp
-2. **Summary table** — every changed file listed with status (Added/Modified/Deleted) and line counts
+2. **Summary table** — every changed file listed with status (Added/Modified/Deleted/Renamed) and line counts
 3. **File changes** — per-file sections with inline diffs in fenced `diff` code blocks for syntax highlighting
