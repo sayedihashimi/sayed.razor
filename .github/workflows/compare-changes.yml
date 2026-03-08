@@ -1,0 +1,51 @@
+name: Compare Changes
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compare hikr branches (2026.03/copilot-no-agent vs 2026.03/copilot-with-agent)
+        shell: pwsh
+        run: >
+          ./tools/diff-summary/Compare-Changes.ps1
+          -Ref1 "2026.03/copilot-no-agent"
+          -Ref2 "2026.03/copilot-with-agent"
+          -OutputFile "hikr.md"
+        continue-on-error: true
+
+      - name: Upload hikr comparison
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hikr
+          path: hikr.md
+          if-no-files-found: warn
+
+      - name: Compare cascade branches (cascade-no-agent vs cascade-with-agent)
+        shell: pwsh
+        run: >
+          ./tools/diff-summary/Compare-Changes.ps1
+          -Ref1 "cascade-no-agent"
+          -Ref2 "cascade-with-agent"
+          -OutputFile "cascade.md"
+        continue-on-error: true
+
+      - name: Upload cascade comparison
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cascade
+          path: cascade.md
+          if-no-files-found: warn

@@ -3,16 +3,22 @@
     Compares two git refs (branches, commit SHAs, or tags) and generates a markdown diff summary.
 
 .DESCRIPTION
-    This script uses Beyond Compare 5 and git worktrees to compare two refs and produces a
-    well-formatted markdown file containing a summary table of all changed files and per-file
-    inline diffs with syntax highlighting. Beyond Compare's rules-based comparison is used with
-    the "ignore unimportant" option to skip insignificant differences like whitespace and blank lines.
+    This script uses git diff to compare two refs and produces a well-formatted markdown file
+    containing a summary table of all changed files and per-file inline diffs with syntax
+    highlighting. Insignificant whitespace and blank-line differences are suppressed using
+    git diff's built-in ignore flags.
+
+    Supports Windows and Linux. Only git (already required) is needed — no additional tools.
 
 .PARAMETER Ref1
     First git ref to compare (branch name, commit SHA, or tag). This is the base ref.
+    Remote branches (e.g. "origin/my-branch") are also accepted. If a bare branch name is
+    given and no local branch exists, the script automatically tries "origin/<Ref1>".
 
 .PARAMETER Ref2
     Second git ref to compare (branch name, commit SHA, or tag). This is the compare ref.
+    Remote branches (e.g. "origin/my-branch") are also accepted. If a bare branch name is
+    given and no local branch exists, the script automatically tries "origin/<Ref2>".
 
 .PARAMETER OutputFile
     Path to the output markdown file. Defaults to "diff-summary.md".
@@ -27,6 +33,8 @@
     ./Compare-Changes.ps1 -Ref1 main -Ref2 feature/no-agent -OutputFile results/my-comparison.md
 #>
 
+#Requires -Version 7
+
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
@@ -40,14 +48,6 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-
-$BcPath = "C:\Program Files\Beyond Compare 5\BComp.com"
-
-# Temp paths (set here so finally block can always clean up)
-$worktree1 = $null
-$worktree2 = $null
-$bcScriptFile = $null
-$bcReportFile = $null
 
 function Get-RepoName {
     try {
@@ -89,155 +89,111 @@ try {
         exit 1
     }
 
-    if (-not (Test-Path $BcPath)) {
-        Write-Error "Beyond Compare 5 not found at '$BcPath'. Please install Beyond Compare 5."
-        exit 1
-    }
-
+    # Resolve Ref1 — try bare name first, fall back to origin/<ref>
     $ref1Sha = git rev-parse --verify $Ref1 2>$null
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Ref1 '$Ref1' is not a valid git ref (branch, commit SHA, or tag)."
-        exit 1
+        $ref1Sha = git rev-parse --verify "origin/$Ref1" 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $Ref1 = "origin/$Ref1"
+        }
+        else {
+            Write-Error "Ref1 '$Ref1' is not a valid git ref (branch, commit SHA, or tag)."
+            exit 1
+        }
     }
 
+    # Resolve Ref2 — try bare name first, fall back to origin/<ref>
     $ref2Sha = git rev-parse --verify $Ref2 2>$null
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Ref2 '$Ref2' is not a valid git ref (branch, commit SHA, or tag)."
-        exit 1
+        $ref2Sha = git rev-parse --verify "origin/$Ref2" 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $Ref2 = "origin/$Ref2"
+        }
+        else {
+            Write-Error "Ref2 '$Ref2' is not a valid git ref (branch, commit SHA, or tag)."
+            exit 1
+        }
     }
 
     Write-Host "  Ref1: $Ref1 ($ref1Sha)" -ForegroundColor Gray
     Write-Host "  Ref2: $Ref2 ($ref2Sha)" -ForegroundColor Gray
 
-    # Step 2: Create temporary git worktrees
-    Write-Host "Creating temporary worktrees..." -ForegroundColor Cyan
+    # Step 2: Get list of changed files via git diff --name-status
+    # -w ignores whitespace changes; --diff-filter limits to Added/Copied/Deleted/Modified/Renamed
+    Write-Host "Identifying changed files..." -ForegroundColor Cyan
 
-    $tempBase = Join-Path ([System.IO.Path]::GetTempPath()) "diff-summary"
-    New-Item -ItemType Directory -Path $tempBase -Force | Out-Null
-
-    $worktree1 = Join-Path $tempBase "ref1-$([System.Guid]::NewGuid().ToString('N').Substring(0,8))"
-    $worktree2 = Join-Path $tempBase "ref2-$([System.Guid]::NewGuid().ToString('N').Substring(0,8))"
-
-    git worktree add $worktree1 $Ref1 --detach 2>&1 | Out-Null
+    $nameStatusLines = git diff --name-status -w --diff-filter=ACDMR "$Ref1" "$Ref2" 2>&1
     if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to create worktree for Ref1 '$Ref1'."
+        Write-Error "git diff --name-status failed: $nameStatusLines"
         exit 1
     }
 
-    git worktree add $worktree2 $Ref2 --detach 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Error "Failed to create worktree for Ref2 '$Ref2'."
-        exit 1
-    }
+    if ($nameStatusLines -is [array]) { $nameStatusLines = $nameStatusLines -join "`n" }
 
-    Write-Host "  Worktree 1: $worktree1" -ForegroundColor Gray
-    Write-Host "  Worktree 2: $worktree2" -ForegroundColor Gray
-
-    # Step 3: Run Beyond Compare folder comparison
-    Write-Host "Running Beyond Compare folder comparison..." -ForegroundColor Cyan
-
-    $bcScriptFile = Join-Path $tempBase "bc-script-$([System.Guid]::NewGuid().ToString('N').Substring(0,8)).bcscript"
-    $bcReportFile = Join-Path $tempBase "bc-report-$([System.Guid]::NewGuid().ToString('N').Substring(0,8)).txt"
-
-    # BC script: load folders, expand all, select changed/orphan files, generate text report
-    $bcScript = @"
-criteria rules-based
-load "%1" "%2"
-expand all
-select diff.files orphan.files
-text-report layout:side-by-side options:display-mismatches output-to:"%3"
-"@
-    Set-Content -Path $bcScriptFile -Value $bcScript -Encoding ASCII
-
-    & $BcPath "@$bcScriptFile" $worktree1 $worktree2 $bcReportFile /silent /closescript /iu 2>&1 | Out-Null
-    $bcExitCode = $LASTEXITCODE
-
-    if ($bcExitCode -ge 100) {
-        Write-Error "Beyond Compare exited with error code $bcExitCode."
-        exit 1
-    }
-
-    # Step 4: Parse BC report to get list of changed files
-    Write-Host "Parsing comparison results..." -ForegroundColor Cyan
-
-    $changedFiles = @()
-    if (Test-Path $bcReportFile) {
-        $reportLines = Get-Content $bcReportFile
-        foreach ($line in $reportLines) {
-            if ($line -match '^File:\s+(.+?)\s*$') {
-                $relativePath = $Matches[1].Trim()
-                # Skip .git metadata
-                if ($relativePath -eq '.git' -or $relativePath -like '.git\*' -or $relativePath -like '.git/*') {
-                    continue
-                }
-                $changedFiles += $relativePath
-            }
-        }
-    }
-
-    # Determine file status and collect diffs
     $fileChanges = @()
-    foreach ($filePath in ($changedFiles | Sort-Object)) {
-        $leftFile = Join-Path $worktree1 $filePath
-        $rightFile = Join-Path $worktree2 $filePath
-        $leftExists = Test-Path $leftFile
-        $rightExists = Test-Path $rightFile
+    foreach ($line in ($nameStatusLines -split "`n")) {
+        $line = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
 
-        if ($leftExists -and $rightExists) {
-            $status = "Modified"
+        # Format: <status><TAB><path>  or  R<score><TAB><old-path><TAB><new-path>
+        $parts = $line -split "`t"
+        $statusCode = $parts[0].Trim()
+
+        $filePath = $null
+        $status = $null
+
+        if ($statusCode -match '^R') {
+            # Renamed: R<score><TAB><old-path><TAB><new-path>
+            if ($parts.Count -ge 3) {
+                $filePath = $parts[2].Trim()
+            }
+            else {
+                $filePath = $parts[1].Trim()
+            }
+            $status = "Renamed"
         }
-        elseif ($rightExists -and -not $leftExists) {
+        elseif ($statusCode -eq 'A') {
+            $filePath = $parts[1].Trim()
             $status = "Added"
         }
-        elseif ($leftExists -and -not $rightExists) {
+        elseif ($statusCode -eq 'C') {
+            $filePath = $parts[1].Trim()
+            $status = "Copied"
+        }
+        elseif ($statusCode -eq 'D') {
+            $filePath = $parts[1].Trim()
             $status = "Deleted"
+        }
+        elseif ($statusCode -eq 'M') {
+            $filePath = $parts[1].Trim()
+            $status = "Modified"
         }
         else {
             continue
         }
 
-        # Get unified diff using git diff --no-index
-        $diffContent = ""
-        if ($leftExists -and $rightExists) {
-            $diffContent = git diff --no-index -- $leftFile $rightFile 2>$null
-        }
-        elseif ($rightExists) {
-            $diffContent = git diff --no-index -- /dev/null $rightFile 2>$null
-        }
-        elseif ($leftExists) {
-            $diffContent = git diff --no-index -- $leftFile /dev/null 2>$null
+        # Skip .git metadata
+        if ($filePath -eq '.git' -or $filePath -like '.git/*' -or $filePath -like '.git\*') {
+            continue
         }
 
+        # Step 3: Get per-file diff
+        $diffContent = git diff -w --unified=3 "$Ref1" "$Ref2" -- $filePath 2>$null
         if ($null -eq $diffContent) { $diffContent = "" }
         if ($diffContent -is [array]) { $diffContent = $diffContent -join "`n" }
-
-        # Clean up absolute paths in diff headers to show relative paths
-        # git diff --no-index outputs c-style escaped paths with doubled backslashes
-        $wt1Doubled = $worktree1 -replace '\\', '\\'
-        $wt2Doubled = $worktree2 -replace '\\', '\\'
-        # Also handle forward-slash variants
-        $wt1Forward = $worktree1 -replace '\\', '/'
-        $wt2Forward = $worktree2 -replace '\\', '/'
-        # Replace all variants — worktree path followed by separator becomes empty
-        # so that "a/<worktree>/<file>" becomes "a/<file>"
-        foreach ($pathVariant in @("$wt1Doubled\\", "$wt2Doubled\\", "$wt1Forward/", "$wt2Forward/", "$worktree1\", "$worktree2\", "$worktree1/", "$worktree2/")) {
-            $diffContent = $diffContent.Replace($pathVariant, '')
-        }
-        # Also handle case where worktree path appears without trailing separator
-        foreach ($pathVariant in @($wt1Doubled, $wt2Doubled, $wt1Forward, $wt2Forward, $worktree1, $worktree2)) {
-            $diffContent = $diffContent.Replace($pathVariant, '')
-        }
 
         $counts = Get-FileLineCounts -DiffContent $diffContent
 
         $fileChanges += [PSCustomObject]@{
-            FilePath    = $filePath
-            Status      = $status
-            DiffContent = $diffContent
-            LinesAdded  = $counts.Added
+            FilePath     = $filePath
+            Status       = $status
+            DiffContent  = $diffContent
+            LinesAdded   = $counts.Added
             LinesRemoved = $counts.Removed
         }
     }
+
+    $fileChanges = $fileChanges | Sort-Object FilePath
 
     if ($fileChanges.Count -eq 0) {
         Write-Host "No significant differences found between '$Ref1' and '$Ref2'." -ForegroundColor Yellow
@@ -246,7 +202,7 @@ text-report layout:side-by-side options:display-mismatches output-to:"%3"
         Write-Host "  Found $($fileChanges.Count) changed file(s)" -ForegroundColor Gray
     }
 
-    # Step 5: Generate markdown
+    # Step 4: Generate markdown
     Write-Host "Generating markdown..." -ForegroundColor Cyan
 
     $repoName = Get-RepoName
@@ -275,7 +231,7 @@ text-report layout:side-by-side options:display-mismatches output-to:"%3"
     $statLine = "$($fileChanges.Count) file(s) changed, $totalAdded insertion(s)(+), $totalRemoved deletion(s)(-)"
     [void]$sb.AppendLine($statLine)
     [void]$sb.AppendLine()
-    [void]$sb.AppendLine("> Insignificant differences (whitespace, blank lines, line endings) were ignored using Beyond Compare's rules-based comparison.")
+    [void]$sb.AppendLine("> Insignificant differences (whitespace, blank lines) were ignored using git diff's built-in ignore flags.")
     [void]$sb.AppendLine()
 
     if ($fileChanges.Count -gt 0) {
@@ -318,7 +274,7 @@ text-report layout:side-by-side options:display-mismatches output-to:"%3"
         }
     }
 
-    # Step 6: Write output
+    # Step 5: Write output
     $outputPath = if ([System.IO.Path]::IsPathRooted($OutputFile)) {
         $OutputFile
     }
@@ -341,21 +297,4 @@ text-report layout:side-by-side options:display-mismatches output-to:"%3"
 catch {
     Write-Error "Failed to generate diff summary: $_"
     exit 1
-}
-finally {
-    # Always clean up worktrees and temp files
-    if ($worktree1 -and (Test-Path $worktree1 -ErrorAction SilentlyContinue)) {
-        Write-Host "Cleaning up worktree 1..." -ForegroundColor DarkGray
-        git worktree remove $worktree1 --force 2>$null
-    }
-    if ($worktree2 -and (Test-Path $worktree2 -ErrorAction SilentlyContinue)) {
-        Write-Host "Cleaning up worktree 2..." -ForegroundColor DarkGray
-        git worktree remove $worktree2 --force 2>$null
-    }
-    if ($bcScriptFile -and (Test-Path $bcScriptFile -ErrorAction SilentlyContinue)) {
-        Remove-Item $bcScriptFile -Force -ErrorAction SilentlyContinue
-    }
-    if ($bcReportFile -and (Test-Path $bcReportFile -ErrorAction SilentlyContinue)) {
-        Remove-Item $bcReportFile -Force -ErrorAction SilentlyContinue
-    }
 }
